@@ -152,6 +152,83 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-debounce-throttling" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2019/01/17/debounce-throttling/">debounce-throttling</a>
+    </h1>
+  
+
+        
+        <a href="/2019/01/17/debounce-throttling/" class="archive-article-date">
+  	<time datetime="2019-01-17T07:32:24.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2019-01-17</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>在实际开发过程中，我们经常会给 Dom 元素绑定一些事件，但是，其中有些事件，我们是无法控制他触发的频率的。就比如：页面上有一个输入框，需要用户输入，并且在不失去焦点的时候判断用户输入的内容是不是满足某种规则。我们可以调用 change 事件或者键盘抬起事件来解决这个问题，但是用户每次输入都频发的触发，这样势必会导致资源浪费，性能也会出现问题。而防抖和节流都是为了解决短时间内大量触发某函数而导致的性能问题。</p>
+<h2 id="举个栗子"><a href="#举个栗子" class="headerlink" title="举个栗子"></a>举个栗子</h2><p>首先，我们写一个例子，模拟用户在输入框中输入内容触发某一个函数。此时我们不加入防抖和截流。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">&lt;!DOCTYPE html&gt;</span><br><span class="line">&lt;html lang=<span class="string">"en"</span>&gt;</span><br><span class="line">&lt;head&gt;</span><br><span class="line">  &lt;meta charset=<span class="string">"UTF-8"</span>&gt;</span><br><span class="line">  &lt;meta name=<span class="string">"viewport"</span> content=<span class="string">"width=device-width, initial-scale=1.0"</span>&gt;</span><br><span class="line">  &lt;meta http-equiv=<span class="string">"X-UA-Compatible"</span> content=<span class="string">"ie=edge"</span>&gt;</span><br><span class="line">  &lt;title&gt;Document&lt;/title&gt;</span><br><span class="line">&lt;/head&gt;</span><br><span class="line">&lt;body&gt;</span><br><span class="line">  &lt;div&gt;</span><br><span class="line">    &lt;span&gt;没有防抖的输入&lt;/span&gt;</span><br><span class="line">    &lt;input <span class="built_in">type</span>=<span class="string">"text"</span>  id=<span class="string">"input"</span>&gt;</span><br><span class="line">  &lt;/div&gt;</span><br><span class="line">  &lt;script&gt;</span><br><span class="line">    window.onload=<span class="function"><span class="title">function</span></span>()&#123;</span><br><span class="line">      <span class="built_in">let</span> input =document.getElementById(<span class="string">'input'</span>);</span><br><span class="line">      <span class="keyword">function</span> <span class="function"><span class="title">valueChange</span></span>()&#123;</span><br><span class="line">        console.log(<span class="string">"我执行了"</span>)</span><br><span class="line">      &#125;</span><br><span class="line">      input.oninput=valueChange;</span><br><span class="line">    &#125;</span><br><span class="line">  &lt;/script&gt;</span><br><span class="line">&lt;/body&gt;</span><br><span class="line">&lt;/html&gt;</span><br></pre></td></tr></table></figure>
+<p><img src="/2019/01/17/debounce-throttling/normal.png" alt="正常情况下的"></p>
+<h2 id="防抖"><a href="#防抖" class="headerlink" title="防抖"></a>防抖</h2><p>含义：在事件被触发 n 秒后再执行回调函数，如果在这 n 秒内又被触发，则重新计时。</p>
+<p>可以看到我们输入了多少个数字，就触发了多少次。下面我们利用防抖来解决下</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">window.onload=<span class="function"><span class="title">function</span></span>()&#123;</span><br><span class="line">  <span class="built_in">let</span> input =document.getElementById(<span class="string">'input'</span>);</span><br><span class="line">  <span class="keyword">function</span> <span class="function"><span class="title">valueChange</span></span>()&#123;</span><br><span class="line">    console.log(<span class="string">"我执行了"</span>)</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">function</span> debounce(fun,delay)&#123;</span><br><span class="line">    <span class="built_in">return</span> <span class="keyword">function</span> (args) &#123;</span><br><span class="line">      <span class="built_in">let</span> that = this</span><br><span class="line">      <span class="built_in">let</span> _args = args</span><br><span class="line">      //每次事件被触发，都会清除当前的timeer，然后重写设置超时调用</span><br><span class="line">      clearTimeout(fun.id)</span><br><span class="line">      fun.id = setTimeout(<span class="function"><span class="title">function</span></span> () &#123;</span><br><span class="line">        fun.call(that, _args)</span><br><span class="line">      &#125;, delay)</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="built_in">let</span> debounceConsole= debounce(valueChange, 500)</span><br><span class="line">  input.oninput=debounceConsole;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><img src="/2019/01/17/debounce-throttling/debounce.jpg" alt="防抖下的"></p>
+<p>明显看到执行的次数变少了，ps（这不是我输入内容少的问题）上面的代码是当用户输入后 0.5 秒执行一次函数。每次输入后，如果不到 0.5 秒，我们清除 timeer，重新计时。</p>
+<h2 id="截流"><a href="#截流" class="headerlink" title="截流"></a>截流</h2><p>含义：规定一个单位时间，在这个单位时间内，只能有一次触发事件的回调函数执行，如果在同一个单位时间内某事件被触发多次，只有一次能生效。</p>
+<p>就比如我们提交表单，不停的点击提交按钮。这种场景下我们需要用此功能。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">window.onload=<span class="function"><span class="title">function</span></span>()&#123;</span><br><span class="line">  <span class="built_in">let</span> input =document.getElementById(<span class="string">'input'</span>);</span><br><span class="line">  <span class="keyword">function</span> <span class="function"><span class="title">valueChange</span></span>()&#123;</span><br><span class="line">    console.log(<span class="string">"我执行了"</span>)</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">function</span> throttle(fun,delay)&#123;</span><br><span class="line">    <span class="built_in">let</span> lastTime, deferTimer</span><br><span class="line">    <span class="built_in">return</span> <span class="keyword">function</span> (args) &#123;</span><br><span class="line">    <span class="built_in">let</span> that = this;</span><br><span class="line">    <span class="built_in">let</span> _args = arguments;</span><br><span class="line">    <span class="built_in">let</span> nowTime = +new Date();</span><br><span class="line">    <span class="keyword">if</span> (lastTime &amp;&amp; nowTime &lt; lastTime + delay) &#123;</span><br><span class="line">      clearTimeout(deferTimer);</span><br><span class="line">      deferTimer = setTimeout(<span class="function"><span class="title">function</span></span> () &#123;</span><br><span class="line">        lastTime = nowTime;</span><br><span class="line">          fun.apply(that, _args);</span><br><span class="line">        &#125;, delay)</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">          lastTime = nowTime;</span><br><span class="line">          fun.apply(that, _args);</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="built_in">let</span> debounceConsole= throttle(valueChange, 1000)</span><br><span class="line">  input.oninput=debounceConsole;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<hr>
+<p><img src="/2019/01/17/debounce-throttling/throttle.png" alt="截流下的"></p>
+<p>前两个是防抖的结果，最后的是截流下的结果。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2019/01/17/debounce-throttling/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-hello-world" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
